@@ -1,0 +1,12 @@
+# Données brutes (5 Go, à télécharger : voir data/README.md)
+data/*.parquet
+
+# Python / Jupyter
+__pycache__/
+.ipynb_checkpoints/
+
+# Fichiers intermédiaires LaTeX
+*.aux
+*.log
+*.out
+*.synctex.gz

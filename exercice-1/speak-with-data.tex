@@ -1,0 +1,291 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage{iftex}
+\ifPDFTeX
+  \usepackage[T1]{fontenc}
+  \usepackage[utf8]{inputenc}
+  \usepackage{lmodern}
+\fi
+\usepackage[french]{babel}
+\frenchsetup{StandardItemLabels=true}
+\usepackage[a4paper,margin=1.8cm,top=1.6cm,bottom=1.8cm]{geometry}
+\usepackage{xcolor}
+\usepackage{booktabs,tabularx,array}
+\usepackage{enumitem}
+\usepackage{titlesec}
+\usepackage[most]{tcolorbox}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.17}
+\usetikzlibrary{babel,positioning,shapes.symbols}
+\usepackage{fancyhdr}
+\usepackage{xurl}
+\usepackage[hidelinks]{hyperref}
+
+% --- Couleurs -------------------------------------------------------------------
+\definecolor{bleu}{HTML}{1F4E79}
+\definecolor{sarcelle}{HTML}{2A9D8F}
+\definecolor{orange}{HTML}{E76F51}
+\definecolor{gris}{HTML}{6B7280}
+\definecolor{fond}{HTML}{F1F5F9}
+\hypersetup{colorlinks, urlcolor=sarcelle, linkcolor=bleu}
+
+% --- Mise en page ---------------------------------------------------------------
+\titleformat{\section}{\Large\bfseries\color{bleu}}{\thesection.}{0.5em}{}
+\titlespacing*{\section}{0pt}{1.1em}{0.5em}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0.45em}
+\setlist{itemsep=0.15em, topsep=0.25em, leftmargin=1.2em}
+\renewcommand{\arraystretch}{1.25}
+\newcolumntype{L}{>{\raggedright\arraybackslash}X}
+\newcolumntype{P}[1]{>{\raggedright\arraybackslash}p{#1}}
+
+\pagestyle{fancy}
+\fancyhf{}
+\renewcommand{\headrulewidth}{0pt}
+\fancyfoot[L]{\footnotesize\color{gris}Speak with Data : créations d'entreprises et fiscalité}
+\fancyfoot[R]{\footnotesize\color{gris}\thepage}
+
+\newtcolorbox{encadre}[1][]{enhanced, colback=fond, colframe=sarcelle, boxrule=0.6pt,
+  arc=2pt, left=8pt, right=8pt, top=5pt, bottom=5pt, #1}
+\newcommand{\chiffre}[2]{%
+  \begin{tabular}{@{}c@{}}{\LARGE\bfseries\color{bleu}#1}\\[-0.1em]
+  \footnotesize\color{gris}\begin{tabular}{@{}c@{}}#2\end{tabular}\end{tabular}}
+
+\pgfplotsset{
+  base/.style={
+    axis lines*=left, ymajorgrids, grid style={gray!20},
+    tick label style={font=\small}, label style={font=\small},
+    legend style={draw=none, fill=none, font=\small}, legend cell align=left,
+    /pgf/number format/.cd, use comma, 1000 sep={\,}},
+}
+
+\begin{document}
+
+% =================================================================================
+{\Huge\bfseries\color{bleu}Speak with Data}\par\vspace{0.2em}
+{\Large Baisser l'impôt pour relancer la création d'entreprises ?}\par\vspace{0.1em}
+{\itshape\color{gris}Proposition de démarche décisionnelle à partir de données publiques}
+
+\vspace{0.6em}
+\begin{encadre}
+\textbf{La question à trancher :} une baisse ciblée de l'impôt sur les sociétés (IS) fait-elle naître
+plus d'entreprises \emph{durables}, pour un coût budgétaire acceptable ?
+\end{encadre}
+
+\textbf{Notre approche.} Partir de données publiques qui existent déjà, montrer plutôt qu'affirmer,
+et mesurer avant \emph{et} après la décision.
+
+\begin{center}
+\chiffre{5,2 M}{créations publiées\\au BODACC depuis 2008}\hfill
+\chiffre{4,2 M}{radiations publiées\\au BODACC depuis 2008}\hfill
+\chiffre{6,1 M}{comptes annuels\\2016–2024}\hfill
+\chiffre{51,6 Md€}{d'IS déclaré\\en 2023}
+\end{center}
+
+\begin{encadre}[colframe=bleu]
+\textbf{En bref}
+\begin{itemize}
+  \item Deux jeux de données publics et gratuits, reliés par le numéro SIREN, suffisent pour démarrer.
+  \item Ils couvrent 2016–2024, période où le taux normal d'IS est passé de 33,3\,\% à 25\,\% :
+        on peut mesurer l'effet d'une \emph{vraie} baisse passée avant d'en décider une nouvelle.
+  \item Les mêmes données serviront, après la réforme, à en mesurer l'impact chaque trimestre.
+  \item Livrable final : un tableau de bord et une recommandation chiffrée (déployer, cibler ou renoncer).
+\end{itemize}
+\end{encadre}
+
+% =================================================================================
+\section{Les données}
+
+\begin{tabularx}{\textwidth}{@{}P{4.2cm}LP{3.6cm}@{}}
+\toprule
+\textbf{Source} & \textbf{Ce qu'on en tire} & \textbf{Volume} \\
+\midrule
+\textbf{BODACC, créations}\newline{\small DILA} &
+  Chaque immatriculation : date, département, forme juridique, société ou entrepreneur individuel, SIREN. &
+  5\,150\,236 annonces\newline 2008–2026 \\
+\textbf{BODACC, radiations}\newline{\small DILA} &
+  Chaque sortie du registre et son motif : liquidation, cessation, radiation d'office. &
+  4\,214\,890 annonces\newline 2008–2026 \\
+\textbf{Données financières détaillées}\newline{\small INPI, data.gouv.fr} &
+  Liasse fiscale des comptes annuels : chiffre d'affaires, résultat, \textbf{impôt sur les bénéfices}. &
+  6\,093\,990 bilans\newline 1\,530\,134 entreprises\newline 2016–2024 \\
+\bottomrule
+\end{tabularx}
+
+{\small\color{gris}Les deux BODACC proviennent du même export (annonces commerciales), filtré par famille d'avis ;
+seuls les avis initiaux sont comptés. Côté comptes, un seul bilan est retenu par entreprise et par exercice
+(comptes consolidés et doublons écartés). \textbf{Le SIREN} est présent dans les trois sources : il permet de suivre
+une entreprise de sa création à sa radiation, en passant par ses comptes et l'impôt qu'elle paie.}
+
+% =================================================================================
+\section{Ce que les données montrent déjà}
+
+Les sociétés (personnes morales) sont celles qui paient l'IS : c'est sur elles que porte la question.
+
+\textbf{Constat 1 : un chiffre brut peut tromper.}
+En 2025, le BODACC publie plus de radiations de sociétés (220\,675) que de créations (183\,701).
+Mais 105\,284 de ces radiations sont des \emph{radiations d'office} : le greffe radie des sociétés qu'il juge inactives.
+Hors radiations d'office, on compte 115\,391 radiations, et le solde reste positif.
+Sans ce tri, l'indicateur brut conduirait à une conclusion fausse.
+
+\begin{center}
+\begin{tikzpicture}
+\begin{axis}[base,
+  width=0.95\textwidth, height=5.6cm,
+  xmin=2008, xmax=2025, ymin=0, ymax=240000,
+  xtick={2008,2010,...,2024,2025}, xticklabel style={/pgf/number format/1000 sep=},
+  scaled y ticks=false, ytick={0,50000,...,200000},
+  yticklabel style={/pgf/number format/fixed},
+  ylabel={sociétés},
+  legend style={at={(0.5,-0.16)}, anchor=north}, legend columns=3,
+  title={\small\bfseries Sociétés créées et radiées par année (BODACC)},
+]
+\addplot[very thick, sarcelle, mark=*, mark size=1.3pt] coordinates {
+  (2008,196424) (2009,153066) (2010,167416) (2011,169459) (2012,158645) (2013,148736)
+  (2014,148442) (2015,151190) (2016,146702) (2017,152826) (2018,167192) (2019,184416)
+  (2020,181046) (2021,213472) (2022,199257) (2023,169351) (2024,174312) (2025,183701)};
+\addplot[very thick, orange, mark=*, mark size=1.3pt] coordinates {
+  (2008,101290) (2009,95184) (2010,99305) (2011,97586) (2012,99834) (2013,106078)
+  (2014,100289) (2015,109126) (2016,112685) (2017,106795) (2018,117206) (2019,154857)
+  (2020,146840) (2021,164220) (2022,198934) (2023,178552) (2024,180837) (2025,220675)};
+\addplot[thick, bleu, dashed, mark=o, mark size=1.3pt] coordinates {
+  (2008,101290) (2009,95139) (2010,99292) (2011,97555) (2012,99829) (2013,106078)
+  (2014,100289) (2015,109126) (2016,112685) (2017,106795) (2018,117188) (2019,154839)
+  (2020,146830) (2021,164220) (2022,198269) (2023,119079) (2024,111922) (2025,115391)};
+\legend{Créations, Radiations (toutes), Radiations hors radiations d'office}
+\end{axis}
+\end{tikzpicture}
+\end{center}
+
+\textbf{Constat 2 : l'impôt est concentré, une baisse ciblée coûte peu.}
+
+\begin{minipage}[c]{0.56\textwidth}
+\begin{tikzpicture}
+\begin{axis}[base,
+  width=0.78\textwidth, height=5.2cm,
+  xbar, bar width=9pt,
+  xmin=0, xmax=38, ymajorgrids=false, xmajorgrids,
+  ytick={1,...,5}, y dir=reverse,
+  yticklabels={{< 100 k€}, {100 k€ – 1 M€}, {1 – 10 M€}, {10 – 50 M€}, {$\geq$ 50 M€}},
+  xlabel={IS déclaré (Md€)}, ylabel={chiffre d'affaires},
+  nodes near coords, nodes near coords style={font=\small},
+  title={\small\bfseries IS déclaré en 2023 par taille d'entreprise},
+]
+\addplot[fill=bleu, draw=none] coordinates {(0.57,1) (1.71,2) (6.32,3) (7.86,4) (31.65,5)};
+\end{axis}
+\end{tikzpicture}
+\end{minipage}\hfill
+\begin{minipage}[c]{0.4\textwidth}
+\small
+Les 9\,036 entreprises de plus de 50~M€ de chiffre d'affaires versent \textbf{66\,\%} de l'IS déclaré.
+Les 232\,661 entreprises de moins de 1~M€ n'en versent que \textbf{5\,\%} (2,3~Md€).
+
+Une baisse réservée aux petites entreprises coûterait donc beaucoup moins qu'une baisse générale.
+
+\textbf{Contrôle de cohérence :} le taux effectif médian est proche des taux légaux,
+15,2\,\% pour les petites (taux réduit PME : 15\,\%) et 24,3\,\% pour les grandes (taux normal : 25\,\%).
+\end{minipage}
+
+\textbf{Constat 3 : les sources se relient.}
+Par le SIREN, on retrouve les comptes annuels de 18,5\,\% des 1\,179\,190 sociétés créées entre 2016 et 2022,
+et de 21\,\% des sociétés radiées entre 2019 et 2024. La couverture est partielle, car toutes les sociétés ne publient
+pas leurs comptes. Le suivi d'une entreprise de sa création à sa radiation, avec l'impôt qu'elle paie, est donc possible :
+\textbf{le projet est faisable}.
+
+% =================================================================================
+\section{Les étapes du projet}
+
+\begin{center}
+\begin{tikzpicture}[
+  etape/.style={signal, signal to=east, signal from=west, fill=#1, text=white, font=\small\bfseries,
+                minimum height=1.1cm, minimum width=3.3cm, inner sep=2pt, align=center},
+  duree/.style={font=\footnotesize, text=gris, align=center},
+  node distance=-0.15cm]
+\node[etape=bleu!60]              (a) {1. Collecter};
+\node[etape=bleu!75, right=of a]  (b) {2. Fiabiliser};
+\node[etape=bleu!90, right=of b]  (c) {3. Modéliser};
+\node[etape=sarcelle, right=of c] (d) {4. Analyser};
+\node[etape=orange, right=of d]   (e) {5. Suivre};
+\node[duree, below=0.15cm of a] {semaine 1};
+\node[duree, below=0.15cm of b] {semaines 1–2};
+\node[duree, below=0.15cm of c] {semaines 2–3};
+\node[duree, below=0.15cm of d] {semaines 3–6};
+\node[duree, below=0.15cm of e] {chaque trimestre};
+\end{tikzpicture}
+\end{center}
+
+\begin{enumerate}[leftmargin=1.4em]
+  \item \textbf{Collecter.} Exporter le BODACC (créations, radiations) et les données financières dans un
+        \emph{data lake} (stockage S3), sans transformation, pour conserver la donnée brute.
+  \item \textbf{Fiabiliser.} Normaliser le SIREN, écarter annulations et rectificatifs, distinguer sociétés et
+        entrepreneurs individuels, isoler les radiations d'office, garder un bilan par entreprise et par exercice.
+  \item \textbf{Modéliser.} Charger un \emph{data warehouse} : faits « annonces » et « bilans »,
+        dimensions entreprise, temps et territoire. Tous les indicateurs sont calculés à partir de ce modèle.
+  \item \textbf{Analyser.} Diagnostic par année, département et forme juridique ; mesure de l'effet de la
+        baisse d'IS 2018–2022 ; chiffrage de plusieurs scénarios de baisse ciblée.
+  \item \textbf{Suivre.} Après la décision, tableau de bord trimestriel : créations, survie à 1, 2 et 3 ans,
+        coût fiscal.
+\end{enumerate}
+
+% =================================================================================
+\section{Les indicateurs de décision}
+
+\begin{tabularx}{\textwidth}{@{}P{4.4cm}LP{5.4cm}@{}}
+\toprule
+\textbf{Indicateur} & \textbf{Question posée} & \textbf{Calcul} \\
+\midrule
+Créations de sociétés & La création progresse-t-elle ? & BODACC créations, personnes morales \\
+Radiations hors office & Les vraies fermetures augmentent-elles ? & BODACC radiations, hors radiations d'office \\
+Solde net & Les entrées dépassent-elles les sorties ? & créations $-$ radiations hors office \\
+Survie à 1, 2 et 3 ans & Les nouvelles sociétés durent-elles ? & créations et radiations reliées par SIREN \\
+Activité des sociétés créées & Créent-elles de la valeur ? & chiffre d'affaires des comptes, par SIREN \\
+Taux effectif d'IS & Qui est réellement exposé à une baisse ? & impôt / (résultat + impôt) \\
+Coût par création supplémentaire & Le gain justifie-t-il la recette perdue ? & IS perdu / créations additionnelles \\
+\bottomrule
+\end{tabularx}
+
+% =================================================================================
+\section{Mesurer l'effet réel de la baisse}
+
+Une hausse des créations après une réforme ne prouve pas que la réforme en est la cause : conjoncture,
+crise sanitaire ou essor de l'auto-entrepreneuriat jouent aussi. On compare donc des entreprises
+\textbf{exposées} à la baisse à des entreprises \textbf{peu exposées}, avant et après
+(méthode des \emph{différences de différences}).
+
+\begin{itemize}
+  \item \textbf{Avant de décider :} la baisse du taux normal (2018–2022) a surtout profité aux entreprises les plus
+        bénéficiaires. Celles dont le bénéfice reste sous le plafond du taux réduit (15\,\%) ont été peu concernées
+        et peuvent servir de groupe de comparaison. Les seuils du taux réduit ont changé en 2021 et en 2023 :
+        les groupes devront en tenir compte.
+  \item \textbf{Après la décision :} définir dès le départ le groupe ciblé et un groupe témoin,
+        puis mesurer l'écart chaque trimestre avec les mêmes données.
+\end{itemize}
+
+\begin{encadre}
+\textbf{La décision}\par\vspace{0.2em}
+\begin{tabular}{@{}l@{\quad}l@{}}
+\textcolor{sarcelle}{\textbf{Déployer}} & si l'effet sur les créations durables est net et le coût maîtrisé ;\\
+\textcolor{bleu}{\textbf{Cibler}} & si l'effet ne concerne que certaines tailles, formes ou territoires ;\\
+\textcolor{orange}{\textbf{Renoncer}} & si le gain ne justifie pas la recette fiscale perdue.
+\end{tabular}
+\end{encadre}
+
+\textbf{Limites.}
+\begin{itemize}
+  \item Le BODACC recense des annonces légales : une radiation n'est pas forcément une faillite.
+  \item Seuls 68\,\% des bilans 2023 publient leur compte de résultat (33\,\% sont partiellement confidentiels) :
+        l'impôt n'est connu que pour une partie des sociétés.
+  \item L'IS déclaré dans la liasse n'est pas la recette fiscale encaissée (crédits d'impôt, groupes fiscaux).
+  \item La baisse de l'IS commence en 2018 et les comptes en 2016 : seuls deux exercices précèdent la réforme,
+        ce qui limite la précision de la comparaison avant/après.
+  \item Les radiations d'office sont interprétées comme administratives ; ce point est à confirmer à l'étape \emph{Fiabiliser}.
+  \item Les comptes 2024 sont encore en cours de dépôt.
+\end{itemize}
+
+\vfill
+{\footnotesize\color{gris}\textbf{Sources :}
+\href{https://www.bodacc.fr/explore/dataset/annonces-commerciales/}{BODACC, annonces commerciales (DILA)} ;
+\href{https://www.data.gouv.fr/datasets/donnees-financieres-detaillees-des-entreprises-format-parquet}{Données financières détaillées des entreprises (INPI, data.gouv.fr)}.
+Chiffres calculés sur les exports d'octobre 2026.}
+
+\end{document}
