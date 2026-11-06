@@ -65,7 +65,7 @@ def impot_par_tranche():
     """, ANNEE_BILANS)
     tranches, impot, entreprises = zip(*lignes)
     fig = go.Figure(go.Bar(x=impot, y=[t[3:] for t in tranches], orientation="h", marker_color=BLEU,
-                           text=impot, textposition="outside", customdata=entreprises,
+                           text=impot, textposition="outside", cliponaxis=False, customdata=entreprises,
                            hovertemplate="%{y} : %{x} Md€ d'IS, %{customdata:,} entreprises<extra></extra>"))
     return mise_en_page(fig, f"IS déclaré en {ANNEE_BILANS} par taille d'entreprise",
                         xaxis=dict(title="IS déclaré (Md€)"),

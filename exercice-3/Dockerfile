@@ -1,7 +1,12 @@
 # Image commune à Airflow, Jupyter et au site de reporting : Airflow + DuckDB (lecture S3, écriture PostgreSQL)
-# + JupyterLab + Plotly (graphiques). FastAPI et uvicorn (site web) sont fournis par Airflow 3.
+# + JupyterLab + Plotly (graphiques) + Chromium (rapport PDF). FastAPI et uvicorn (site web) sont fournis par Airflow 3.
 # requests et boto3 (téléchargement des sources, dépôt dans le bucket) sont déjà fournis par l'image Airflow.
 FROM apache/airflow:3.3.2
+
+# Chromium sans fenêtre imprime le rapport PDF (graphiques Plotly vectoriels) ; DejaVu pour les accents
+USER root
+RUN apt-get update && apt-get install -y --no-install-recommends chromium fonts-dejavu-core     && rm -rf /var/lib/apt/lists/*
+USER airflow
 
 RUN pip install --no-cache-dir "apache-airflow==${AIRFLOW_VERSION}" duckdb==1.5.* jupyterlab plotly==7.1.*
 

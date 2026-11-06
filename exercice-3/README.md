@@ -11,7 +11,7 @@ cd exercice-3
 docker compose up -d --build
 ```
 
-Ouvrir Airflow sur http://localhost:8080, DAG `chargement_dw`, bouton **Trigger**. Ou en ligne de commande :
+Le DAG `chargement_dw` est hebdomadaire : il se lance seul au premier démarrage, puis chaque semaine. Pour le relancer à la main : Airflow sur http://localhost:8080, bouton **Trigger**, ou en ligne de commande :
 
 ```bash
 docker compose exec airflow airflow dags trigger chargement_dw
@@ -26,6 +26,7 @@ Le premier lancement prend environ 40 minutes, dont 30 pour télécharger les 5 
 | `airflow` | Orchestration et visualisation des flux | http://localhost:8080 |
 | `jupyter` | Prototypage Python (`notebooks/exploration.ipynb`) | http://localhost:8888 |
 | `web` | Reporting web : les graphiques du notebook | http://localhost:8000 |
+| `mail` | Boîte mail de test ([Mailpit](https://mailpit.axllent.org)) : reçoit le rapport hebdomadaire | http://localhost:8025 |
 
 Les ports n'écoutent que sur `127.0.0.1` : les services, sans mot de passe pour Airflow et Jupyter, ne sont pas accessibles depuis le réseau.
 
@@ -40,6 +41,14 @@ Les graphiques validés dans le notebook sont publiés sur http://localhost:8000
 - **Même code** : chaque graphique est une fonction de `reporting/graphiques.py`, qui renvoie une figure Plotly. Le notebook l'affiche (`societes_par_annee()`), le site l'intègre en HTML (`reporting/web.py`) : les graphiques sont strictement identiques.
 - **Microframework** : FastAPI, servi par uvicorn. Les deux sont déjà fournis par l'image Airflow 3 : la seule dépendance ajoutée est Plotly, qui fournit aussi Plotly.js (copie locale, aucun CDN). Les courbes utilisent le rendu WebGL de Plotly (`Scattergl`).
 - **Données** : les graphiques lisent les agrégats `kpi_annonces` et `kpi_bilans` (quelques millisecondes), recalculés à chaque chargement : le site est à jour dès la fin du DAG.
+
+## Rapport
+
+À la fin de chaque chargement, le DAG produit un rapport PDF d'une page et l'envoie par email : chaque semaine, les destinataires reçoivent les indicateurs à jour sans rien demander.
+
+- **Contenu** : quatre chiffres clés et les graphiques du notebook, produits par le même code (`reporting/graphiques.py`) que le notebook et le site web.
+- **Édition** : un modèle HTML/CSS ([Jinja2](https://jinja.palletsprojects.com), fourni par Airflow) remplit `reporting/rapport.html` ; Chromium sans fenêtre l'imprime en PDF (`reporting/rapport.py`). Plotly.js dessine les graphiques dans la page : ils restent vectoriels dans le PDF.
+- **Diffusion** : PDF archivé dans le data lake, puis envoyé par SMTP. En démonstration, le serveur est Mailpit, qui garde les messages sans les envoyer : le rapport se lit sur http://localhost:8025. En production, il suffit de pointer `SMTP_HOST` vers un vrai serveur.
 
 ## Les flux
 
@@ -78,7 +87,7 @@ flowchart LR
     TI --> NB[nettoyer_bilans]
     NA & NB --> CD[charger_dimensions]
     CD --> FA[charger_fait_annonce] & FB[charger_fait_bilan]
-    FA & FB --> AG[actualiser_agregats] --> CT[controler]
+    FA & FB --> AG[actualiser_agregats] --> CT[controler] --> GR[generer_rapport] --> ER[envoyer_rapport]
 ```
 
 | Tâche | Ce qu'elle fait |
@@ -92,6 +101,8 @@ flowchart LR
 | `charger_fait_annonce`, `charger_fait_bilan` | Chargent les faits, en parallèle. |
 | `actualiser_agregats` | Recalcule les vues d'agrégats (`kpi_annonces`, `kpi_bilans`) et met à jour les statistiques de PostgreSQL (`ANALYZE`). |
 | `controler` | Échoue si une table est vide ; affiche le nombre de lignes et l'indicateur de l'exercice 1 (sociétés créées / radiées hors radiations d'office, par année). |
+| `generer_rapport` | Produit le rapport PDF (voir Rapport) et l'archive dans le bucket, `reports/rapport-<date>.pdf`. |
+| `envoyer_rapport` | Envoie le rapport en pièce jointe aux destinataires de `RAPPORT_DESTINATAIRES` (serveur SMTP `mail`). |
 
 ### Règles de nettoyage
 

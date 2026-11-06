@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <title>Speak with Data : rapport du {{ date }}</title>
+  {# Plotly.js intégré au fichier : Chromium dessine les graphiques sans accès réseau #}
+  <script>{{ plotly_js }}</script>
+  <style>
+    @page { size: A4; margin: 15mm; }
+    body { font-family: "DejaVu Sans", sans-serif; color: #1f2933; font-size: 11pt; }
+    h1 { color: #1F4E79; margin: 0; }
+    .sous-titre { color: #6b7280; margin: 2px 0 16px; }
+    .chiffres { display: flex; justify-content: space-between; margin: 12px 0 8px; }
+    .chiffre { text-align: center; width: 24%; }
+    .chiffre b { display: block; font-size: 20pt; color: #1F4E79; }
+    .chiffre span { color: #6b7280; font-size: 9pt; }
+    .graphique { break-inside: avoid; margin-top: 10px; }
+    .source { color: #6b7280; font-size: 8pt; margin-top: 12px; }
+  </style>
+</head>
+<body>
+  <h1>Speak with Data</h1>
+  <p class="sous-titre">Créations d'entreprises et fiscalité : rapport du {{ date }}</p>
+
+  <div class="chiffres">
+    {% for valeur, libelle in chiffres %}
+    <div class="chiffre"><b>{{ valeur }}</b><span>{{ libelle }}</span></div>
+    {% endfor %}
+  </div>
+
+  {% for graphique in graphiques %}
+  <div class="graphique">{{ graphique }}</div>
+  {% endfor %}
+
+  <p class="source">Sources : BODACC, annonces commerciales (DILA) ; données financières détaillées des entreprises
+    (INPI, data.gouv.fr). Sociétés uniquement (personnes morales). Rapport produit automatiquement par le DAG
+    chargement_dw.</p>
+</body>
+</html>

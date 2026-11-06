@@ -47,8 +47,13 @@ services:
       AIRFLOW__CORE__LOAD_EXAMPLES: "false"
       AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "false"
       AIRFLOW__CORE__SIMPLE_AUTH_MANAGER_ALL_ADMINS: "true"
+      PYTHONPATH: /opt/airflow/reporting
+      # Envoi du rapport : serveur SMTP de test (mail), destinataires séparés par des virgules
+      SMTP_HOST: mail
+      SMTP_PORT: "1025"
+      RAPPORT_DESTINATAIRES: direction@speak-with-data.local
     ports: ["127.0.0.1:8080:8080"]
-    volumes: [./dags:/opt/airflow/dags]
+    volumes: [./dags:/opt/airflow/dags, ./reporting:/opt/airflow/reporting:ro]
     depends_on:
       dw: {condition: service_healthy}
       datalake: {condition: service_started}
@@ -65,6 +70,11 @@ services:
       PYTHONPATH: /opt/airflow/reporting
     ports: ["127.0.0.1:8888:8888"]
     volumes: [./notebooks:/opt/airflow/notebooks, ./reporting:/opt/airflow/reporting:ro]
+
+  # Boîte mail de test : reçoit le rapport envoyé par le DAG, consultable sur http://localhost:8025
+  mail:
+    image: axllent/mailpit:v1.32.0
+    ports: ["127.0.0.1:8025:8025"]
 
   # Reporting web : http://localhost:8000 (mêmes graphiques que le notebook, même code : reporting/graphiques.py)
   web:

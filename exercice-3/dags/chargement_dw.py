@@ -5,8 +5,10 @@ clean/ : fichiers nettoyés, au format du data warehouse
 dw     : schéma en étoile chargé depuis clean/
 """
 import os
+import smtplib
 import tempfile
 from datetime import timedelta
+from email.message import EmailMessage
 
 import boto3
 import duckdb
@@ -71,7 +73,8 @@ def connexion():
     return con
 
 
-@dag(schedule=None, start_date=pendulum.datetime(2026, 1, 1), catchup=False, tags=["speak-with-data"])
+# Chaque semaine : nouvelles données, chargement, puis rapport envoyé par email
+@dag(schedule="@weekly", start_date=pendulum.datetime(2026, 1, 1), catchup=False, tags=["speak-with-data"])
 def chargement_dw():
 
     @task
@@ -241,6 +244,30 @@ def chargement_dw():
             GROUP BY annee ORDER BY annee
         """).df().to_string(index=False))
 
+    @task
+    def generer_rapport():
+        # Rapport PDF (chiffres clés et graphiques du notebook), archivé dans le data lake
+        from rapport import generer
+        cle = f"reports/rapport-{pendulum.now():%Y-%m-%d}.pdf"
+        with tempfile.TemporaryDirectory() as dossier:
+            pdf = f"{dossier}/rapport.pdf"
+            generer(pdf)
+            s3().upload_file(pdf, BUCKET, cle)
+        return cle
+
+    @task
+    def envoyer_rapport(cle):
+        message = EmailMessage()
+        message["Subject"] = "Speak with Data : rapport hebdomadaire"
+        message["From"] = "rapports@speak-with-data.local"
+        message["To"] = os.environ["RAPPORT_DESTINATAIRES"]
+        message.set_content("Bonjour,\n\nVeuillez trouver ci-joint le rapport des indicateurs, "
+                            "produit après le chargement du data warehouse.\n")
+        pdf = s3().get_object(Bucket=BUCKET, Key=cle)["Body"].read()
+        message.add_attachment(pdf, maintype="application", subtype="pdf", filename=cle.split("/")[-1])
+        with smtplib.SMTP(os.environ["SMTP_HOST"], int(os.environ["SMTP_PORT"])) as smtp:
+            smtp.send_message(message)
+
     bucket = creer_bucket()
     bodacc = telecharger_bodacc.expand(annee=annees_bodacc())
     inpi = telecharger_inpi()
@@ -249,7 +276,11 @@ def chargement_dw():
     dims = charger_dimensions()
     bodacc >> nettoyer_annonces() >> dims
     inpi >> nettoyer_bilans() >> dims
-    dims >> [charger_fait_annonce(), charger_fait_bilan()] >> actualiser_agregats() >> controler()
+    controle = controler()
+    dims >> [charger_fait_annonce(), charger_fait_bilan()] >> actualiser_agregats() >> controle
+    rapport = generer_rapport()
+    controle >> rapport
+    envoyer_rapport(rapport)
 
 
 chargement_dw()
