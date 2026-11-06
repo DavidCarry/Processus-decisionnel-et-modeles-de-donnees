@@ -120,7 +120,7 @@ def chargement_dw():
                        nullif(left(lower(trim(regexp_extract(listepersonnes, '"formeJuridique": "([^"]*)"', 1))), 150), '')
                            AS forme_juridique,
                        CASE WHEN familleavis = 'radiation' THEN
-                           CASE WHEN radiationaurcs LIKE '%Radiation d''office%' THEN 'office'
+                           CASE WHEN radiationaurcs ILIKE '%radiation d''office%' THEN 'office'
                                 WHEN radiationaurcs ILIKE '%liquidation%' THEN 'liquidation'
                                 ELSE 'autre' END
                        END AS motif_radiation

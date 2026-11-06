@@ -10,7 +10,7 @@ x-acces: &acces
 services:
   # Data lake : stockage S3 (RustFS, compatible MinIO/AWS)
   datalake:
-    image: rustfs/rustfs:latest
+    image: rustfs/rustfs:1.0.3
     environment:
       RUSTFS_ACCESS_KEY: admin
       RUSTFS_SECRET_KEY: admin12345
