@@ -76,7 +76,7 @@ plus d'entreprises \emph{durables}, pour un coût budgétaire acceptable ?
 et mesurer avant \emph{et} après la décision.
 
 \begin{center}
-\chiffre{5,2 M}{créations publiées\\au BODACC depuis 2008}\hfill
+\chiffre{6,7 M}{créations publiées\\au BODACC depuis 2008}\hfill
 \chiffre{4,2 M}{radiations publiées\\au BODACC depuis 2008}\hfill
 \chiffre{6,1 M}{comptes annuels\\2016–2024}\hfill
 \chiffre{51,6 Md€}{d'IS déclaré\\en 2023}
@@ -102,10 +102,10 @@ et mesurer avant \emph{et} après la décision.
 \midrule
 \textbf{BODACC, créations}\newline{\small DILA} &
   Chaque immatriculation : date, département, forme juridique, société ou entrepreneur individuel, SIREN. &
-  5\,150\,236 annonces\newline 2008–2026 \\
+  6\,667\,267 annonces\newline 2008–2026 \\
 \textbf{BODACC, radiations}\newline{\small DILA} &
   Chaque sortie du registre et son motif : liquidation, cessation, radiation d'office. &
-  4\,214\,890 annonces\newline 2008–2026 \\
+  4\,249\,819 annonces\newline 2008–2026 \\
 \textbf{Données financières détaillées}\newline{\small INPI, data.gouv.fr} &
   Liasse fiscale des comptes annuels : chiffre d'affaires, résultat, \textbf{impôt sur les bénéfices}. &
   6\,093\,990 bilans\newline 1\,530\,134 entreprises\newline 2016–2024 \\
@@ -123,35 +123,35 @@ une entreprise de sa création à sa radiation, en passant par ses comptes et l'
 Les sociétés (personnes morales) sont celles qui paient l'IS : c'est sur elles que porte la question.
 
 \textbf{Constat 1 : un chiffre brut peut tromper.}
-En 2025, le BODACC publie plus de radiations de sociétés (220\,675) que de créations (183\,701).
-Mais 105\,284 de ces radiations sont des \emph{radiations d'office} : le greffe radie des sociétés qu'il juge inactives.
-Hors radiations d'office, on compte 115\,391 radiations, et le solde reste positif.
-Sans ce tri, l'indicateur brut conduirait à une conclusion fausse.
+Entre 2018 et 2025, les radiations de sociétés publiées au BODACC passent de 117\,145 à 220\,674 : elles ont presque doublé.
+Mais en 2025, 105\,283 d'entre elles sont des \emph{radiations d'office} : le greffe radie des sociétés qu'il juge inactives.
+Hors radiations d'office, on compte 115\,391 radiations, au niveau de 2018, pour 244\,985 créations.
+Sans ce tri, l'indicateur brut ferait conclure à une vague de fermetures qui n'existe pas.
 
 \begin{center}
 \begin{tikzpicture}
 \begin{axis}[base,
   width=0.95\textwidth, height=5.6cm,
-  xmin=2008, xmax=2025, ymin=0, ymax=240000,
+  xmin=2008, xmax=2025, ymin=0, ymax=280000,
   xtick={2008,2010,...,2024,2025}, xticklabel style={/pgf/number format/1000 sep=},
-  scaled y ticks=false, ytick={0,50000,...,200000},
+  scaled y ticks=false, ytick={0,50000,...,250000},
   yticklabel style={/pgf/number format/fixed},
   ylabel={sociétés},
   legend style={at={(0.5,-0.16)}, anchor=north}, legend columns=3,
   title={\small\bfseries Sociétés créées et radiées par année (BODACC)},
 ]
 \addplot[very thick, sarcelle, mark=*, mark size=1.3pt] coordinates {
-  (2008,196424) (2009,153066) (2010,167416) (2011,169459) (2012,158645) (2013,148736)
-  (2014,148442) (2015,151190) (2016,146702) (2017,152826) (2018,167192) (2019,184416)
-  (2020,181046) (2021,213472) (2022,199257) (2023,169351) (2024,174312) (2025,183701)};
+  (2008,261466) (2009,188447) (2010,205758) (2011,208848) (2012,195363) (2013,182660)
+  (2014,182539) (2015,185905) (2016,195431) (2017,198656) (2018,205898) (2019,227029)
+  (2020,211396) (2021,240888) (2022,227869) (2023,221792) (2024,231545) (2025,244985)};
 \addplot[very thick, orange, mark=*, mark size=1.3pt] coordinates {
-  (2008,101290) (2009,95184) (2010,99305) (2011,97586) (2012,99834) (2013,106078)
-  (2014,100289) (2015,109126) (2016,112685) (2017,106795) (2018,117206) (2019,154857)
-  (2020,146840) (2021,164220) (2022,198934) (2023,178552) (2024,180837) (2025,220675)};
+  (2008,101263) (2009,95170) (2010,99274) (2011,97557) (2012,99806) (2013,106026)
+  (2014,100245) (2015,109065) (2016,112629) (2017,106699) (2018,117145) (2019,154796)
+  (2020,146784) (2021,164181) (2022,198913) (2023,178551) (2024,180837) (2025,220674)};
 \addplot[thick, bleu, dashed, mark=o, mark size=1.3pt] coordinates {
-  (2008,101290) (2009,95139) (2010,99292) (2011,97555) (2012,99829) (2013,106078)
-  (2014,100289) (2015,109126) (2016,112685) (2017,106795) (2018,117188) (2019,154839)
-  (2020,146830) (2021,164220) (2022,198269) (2023,119079) (2024,111922) (2025,115391)};
+  (2008,101263) (2009,95125) (2010,99261) (2011,97526) (2012,99801) (2013,106026)
+  (2014,100245) (2015,109065) (2016,112629) (2017,106699) (2018,117127) (2019,154778)
+  (2020,146774) (2021,164181) (2022,198248) (2023,119078) (2024,111922) (2025,115391)};
 \legend{Créations, Radiations (toutes), Radiations hors radiations d'office}
 \end{axis}
 \end{tikzpicture}
@@ -187,7 +187,7 @@ Une baisse réservée aux petites entreprises coûterait donc beaucoup moins qu'
 \end{minipage}
 
 \textbf{Constat 3 : les sources se relient.}
-Par le SIREN, on retrouve les comptes annuels de 18,5\,\% des 1\,179\,190 sociétés créées entre 2016 et 2022,
+Par le SIREN, on retrouve les comptes annuels de 18,5\,\% des 1\,505\,006 sociétés créées entre 2016 et 2022,
 et de 21\,\% des sociétés radiées entre 2019 et 2024. La couverture est partielle, car toutes les sociétés ne publient
 pas leurs comptes. Le suivi d'une entreprise de sa création à sa radiation, avec l'impôt qu'elle paie, est donc possible :
 \textbf{le projet est faisable}.
@@ -271,7 +271,7 @@ crise sanitaire ou essor de l'auto-entrepreneuriat jouent aussi. On compare donc
 \end{encadre}
 
 \textbf{Limites.}
-\begin{itemize}
+\begin{itemize}[itemsep=0pt, parsep=0pt]
   \item Le BODACC recense des annonces légales : une radiation n'est pas forcément une faillite.
   \item Seuls 68\,\% des bilans 2023 publient leur compte de résultat (33\,\% sont partiellement confidentiels) :
         l'impôt n'est connu que pour une partie des sociétés.
@@ -286,6 +286,6 @@ crise sanitaire ou essor de l'auto-entrepreneuriat jouent aussi. On compare donc
 {\footnotesize\color{gris}\textbf{Sources :}
 \href{https://www.bodacc.fr/explore/dataset/annonces-commerciales/}{BODACC, annonces commerciales (DILA)} ;
 \href{https://www.data.gouv.fr/datasets/donnees-financieres-detaillees-des-entreprises-format-parquet}{Données financières détaillées des entreprises (INPI, data.gouv.fr)}.
-Chiffres calculés sur les exports d'octobre 2026.}
+Chiffres calculés sur les données de novembre 2026.}
 
 \end{document}
