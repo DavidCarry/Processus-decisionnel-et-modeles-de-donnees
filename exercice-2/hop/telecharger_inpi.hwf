@@ -1,0 +1,416 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<workflow>
+  <name>telecharger_inpi</name>
+  <name_sync_with_filename>Y</name_sync_with_filename>
+  <description>Télécharge la dernière version des données financières dans le data lake.</description>
+  <extended_description/>
+  <workflow_version/>
+  <parameters>
+  </parameters>
+  <actions>
+    <action>
+      <name>Start</name>
+      <description/>
+      <type>SPECIAL</type>
+      <attributes/>
+      <start>Y</start>
+      <dummy>N</dummy>
+      <repeat>N</repeat>
+      <schedulerType>0</schedulerType>
+      <intervalSeconds>0</intervalSeconds>
+      <intervalMinutes>60</intervalMinutes>
+      <hour>12</hour>
+      <minutes>0</minutes>
+      <weekDay>1</weekDay>
+      <DayOfMonth>1</DayOfMonth>
+      <parallel>N</parallel>
+      <nr>0</nr>
+      <xloc>64</xloc>
+      <yloc>160</yloc>
+      <attributes_hac/>
+    </action>
+    <action>
+      <name>Adresse du fichier</name>
+      <description/>
+      <type>PIPELINE</type>
+      <attributes/>
+      <filename>${PROJECT_HOME}/url_inpi.hpl</filename>
+      <params_from_previous>N</params_from_previous>
+      <exec_per_row>N</exec_per_row>
+      <clear_rows>N</clear_rows>
+      <clear_files>N</clear_files>
+      <set_logfile>N</set_logfile>
+      <logfile/>
+      <logext/>
+      <add_date>N</add_date>
+      <add_time>N</add_time>
+      <loglevel>Basic</loglevel>
+      <set_append_logfile>N</set_append_logfile>
+      <wait_until_finished>Y</wait_until_finished>
+      <follow_abort_remote>N</follow_abort_remote>
+      <create_parent_folder>N</create_parent_folder>
+      <run_configuration>local</run_configuration>
+      <parameters>
+        <pass_all_parameters>Y</pass_all_parameters>
+      </parameters>
+      <parallel>N</parallel>
+      <nr>0</nr>
+      <xloc>64</xloc>
+      <yloc>32</yloc>
+      <attributes_hac/>
+    </action>
+    <action>
+      <name>Télécharger (essai 1)</name>
+      <description/>
+      <type>HTTP</type>
+      <attributes/>
+      <url>${URL_INPI}</url>
+      <targetfilename>/tmp/inpi.parquet</targetfilename>
+      <file_appended>N</file_appended>
+      <date_time_added>N</date_time_added>
+      <targetfilename_extension/>
+      <uploadfilename/>
+      <url_fieldname/>
+      <upload_fieldname/>
+      <dest_fieldname/>
+      <run_every_row>N</run_every_row>
+      <ignore_ssl>N</ignore_ssl>
+      <proxy_host/>
+      <proxy_port/>
+      <non_proxy_hosts/>
+      <username/>
+      <password/>
+      <addfilenameresult>N</addfilenameresult>
+      <headers>
+      </headers>
+      <parallel>N</parallel>
+      <nr>0</nr>
+      <xloc>224</xloc>
+      <yloc>160</yloc>
+      <attributes_hac/>
+    </action>
+    <action>
+      <name>Vérifier (essai 1)</name>
+      <description/>
+      <type>PIPELINE</type>
+      <attributes/>
+      <filename>${PROJECT_HOME}/verifier_inpi.hpl</filename>
+      <params_from_previous>N</params_from_previous>
+      <exec_per_row>N</exec_per_row>
+      <clear_rows>N</clear_rows>
+      <clear_files>N</clear_files>
+      <set_logfile>N</set_logfile>
+      <logfile/>
+      <logext/>
+      <add_date>N</add_date>
+      <add_time>N</add_time>
+      <loglevel>Basic</loglevel>
+      <set_append_logfile>N</set_append_logfile>
+      <wait_until_finished>Y</wait_until_finished>
+      <follow_abort_remote>N</follow_abort_remote>
+      <create_parent_folder>N</create_parent_folder>
+      <run_configuration>local</run_configuration>
+      <parameters>
+        <pass_all_parameters>Y</pass_all_parameters>
+      </parameters>
+      <parallel>N</parallel>
+      <nr>0</nr>
+      <xloc>400</xloc>
+      <yloc>160</yloc>
+      <attributes_hac/>
+    </action>
+    <action>
+      <name>Attendre 30 s (1)</name>
+      <description/>
+      <type>DELAY</type>
+      <attributes/>
+      <maximumTimeout>30</maximumTimeout>
+      <scaletime>0</scaletime>
+      <parallel>N</parallel>
+      <nr>0</nr>
+      <xloc>400</xloc>
+      <yloc>288</yloc>
+      <attributes_hac/>
+    </action>
+    <action>
+      <name>Télécharger (essai 2)</name>
+      <description/>
+      <type>HTTP</type>
+      <attributes/>
+      <url>${URL_INPI}</url>
+      <targetfilename>/tmp/inpi.parquet</targetfilename>
+      <file_appended>N</file_appended>
+      <date_time_added>N</date_time_added>
+      <targetfilename_extension/>
+      <uploadfilename/>
+      <url_fieldname/>
+      <upload_fieldname/>
+      <dest_fieldname/>
+      <run_every_row>N</run_every_row>
+      <ignore_ssl>N</ignore_ssl>
+      <proxy_host/>
+      <proxy_port/>
+      <non_proxy_hosts/>
+      <username/>
+      <password/>
+      <addfilenameresult>N</addfilenameresult>
+      <headers>
+      </headers>
+      <parallel>N</parallel>
+      <nr>0</nr>
+      <xloc>576</xloc>
+      <yloc>160</yloc>
+      <attributes_hac/>
+    </action>
+    <action>
+      <name>Vérifier (essai 2)</name>
+      <description/>
+      <type>PIPELINE</type>
+      <attributes/>
+      <filename>${PROJECT_HOME}/verifier_inpi.hpl</filename>
+      <params_from_previous>N</params_from_previous>
+      <exec_per_row>N</exec_per_row>
+      <clear_rows>N</clear_rows>
+      <clear_files>N</clear_files>
+      <set_logfile>N</set_logfile>
+      <logfile/>
+      <logext/>
+      <add_date>N</add_date>
+      <add_time>N</add_time>
+      <loglevel>Basic</loglevel>
+      <set_append_logfile>N</set_append_logfile>
+      <wait_until_finished>Y</wait_until_finished>
+      <follow_abort_remote>N</follow_abort_remote>
+      <create_parent_folder>N</create_parent_folder>
+      <run_configuration>local</run_configuration>
+      <parameters>
+        <pass_all_parameters>Y</pass_all_parameters>
+      </parameters>
+      <parallel>N</parallel>
+      <nr>0</nr>
+      <xloc>752</xloc>
+      <yloc>160</yloc>
+      <attributes_hac/>
+    </action>
+    <action>
+      <name>Attendre 30 s (2)</name>
+      <description/>
+      <type>DELAY</type>
+      <attributes/>
+      <maximumTimeout>30</maximumTimeout>
+      <scaletime>0</scaletime>
+      <parallel>N</parallel>
+      <nr>0</nr>
+      <xloc>752</xloc>
+      <yloc>288</yloc>
+      <attributes_hac/>
+    </action>
+    <action>
+      <name>Télécharger (essai 3)</name>
+      <description/>
+      <type>HTTP</type>
+      <attributes/>
+      <url>${URL_INPI}</url>
+      <targetfilename>/tmp/inpi.parquet</targetfilename>
+      <file_appended>N</file_appended>
+      <date_time_added>N</date_time_added>
+      <targetfilename_extension/>
+      <uploadfilename/>
+      <url_fieldname/>
+      <upload_fieldname/>
+      <dest_fieldname/>
+      <run_every_row>N</run_every_row>
+      <ignore_ssl>N</ignore_ssl>
+      <proxy_host/>
+      <proxy_port/>
+      <non_proxy_hosts/>
+      <username/>
+      <password/>
+      <addfilenameresult>N</addfilenameresult>
+      <headers>
+      </headers>
+      <parallel>N</parallel>
+      <nr>0</nr>
+      <xloc>928</xloc>
+      <yloc>160</yloc>
+      <attributes_hac/>
+    </action>
+    <action>
+      <name>Vérifier (essai 3)</name>
+      <description/>
+      <type>PIPELINE</type>
+      <attributes/>
+      <filename>${PROJECT_HOME}/verifier_inpi.hpl</filename>
+      <params_from_previous>N</params_from_previous>
+      <exec_per_row>N</exec_per_row>
+      <clear_rows>N</clear_rows>
+      <clear_files>N</clear_files>
+      <set_logfile>N</set_logfile>
+      <logfile/>
+      <logext/>
+      <add_date>N</add_date>
+      <add_time>N</add_time>
+      <loglevel>Basic</loglevel>
+      <set_append_logfile>N</set_append_logfile>
+      <wait_until_finished>Y</wait_until_finished>
+      <follow_abort_remote>N</follow_abort_remote>
+      <create_parent_folder>N</create_parent_folder>
+      <run_configuration>local</run_configuration>
+      <parameters>
+        <pass_all_parameters>Y</pass_all_parameters>
+      </parameters>
+      <parallel>N</parallel>
+      <nr>0</nr>
+      <xloc>1104</xloc>
+      <yloc>160</yloc>
+      <attributes_hac/>
+    </action>
+    <action>
+      <name>Déposer dans le data lake</name>
+      <description/>
+      <type>COPY_FILES</type>
+      <attributes/>
+      <copy_empty_folders>N</copy_empty_folders>
+      <arg_from_previous>N</arg_from_previous>
+      <overwrite_files>Y</overwrite_files>
+      <include_subfolders>N</include_subfolders>
+      <remove_source_files>Y</remove_source_files>
+      <add_result_filesname>N</add_result_filesname>
+      <destination_is_a_file>Y</destination_is_a_file>
+      <create_destination_folder>N</create_destination_folder>
+      <fields>
+        <field>
+          <source_filefolder>/tmp/inpi.parquet</source_filefolder>
+          <destination_filefolder>lake://${S3_BUCKET}/raw/inpi/donnees_financieres.parquet</destination_filefolder>
+          <wildcard/>
+        </field>
+      </fields>
+      <parallel>N</parallel>
+      <nr>0</nr>
+      <xloc>1280</xloc>
+      <yloc>160</yloc>
+      <attributes_hac/>
+    </action>
+    <action>
+      <name>Succès</name>
+      <description/>
+      <type>SUCCESS</type>
+      <attributes/>
+      <parallel>N</parallel>
+      <nr>0</nr>
+      <xloc>1456</xloc>
+      <yloc>160</yloc>
+      <attributes_hac/>
+    </action>
+  </actions>
+  <hops>
+    <hop>
+      <from>Start</from>
+      <to>Adresse du fichier</to>
+      <enabled>Y</enabled>
+      <evaluation>Y</evaluation>
+      <unconditional>Y</unconditional>
+    </hop>
+    <hop>
+      <from>Adresse du fichier</from>
+      <to>Télécharger (essai 1)</to>
+      <enabled>Y</enabled>
+      <evaluation>Y</evaluation>
+      <unconditional>N</unconditional>
+    </hop>
+    <hop>
+      <from>Télécharger (essai 1)</from>
+      <to>Vérifier (essai 1)</to>
+      <enabled>Y</enabled>
+      <evaluation>Y</evaluation>
+      <unconditional>N</unconditional>
+    </hop>
+    <hop>
+      <from>Vérifier (essai 1)</from>
+      <to>Déposer dans le data lake</to>
+      <enabled>Y</enabled>
+      <evaluation>Y</evaluation>
+      <unconditional>N</unconditional>
+    </hop>
+    <hop>
+      <from>Télécharger (essai 1)</from>
+      <to>Attendre 30 s (1)</to>
+      <enabled>Y</enabled>
+      <evaluation>N</evaluation>
+      <unconditional>N</unconditional>
+    </hop>
+    <hop>
+      <from>Vérifier (essai 1)</from>
+      <to>Attendre 30 s (1)</to>
+      <enabled>Y</enabled>
+      <evaluation>N</evaluation>
+      <unconditional>N</unconditional>
+    </hop>
+    <hop>
+      <from>Attendre 30 s (1)</from>
+      <to>Télécharger (essai 2)</to>
+      <enabled>Y</enabled>
+      <evaluation>Y</evaluation>
+      <unconditional>N</unconditional>
+    </hop>
+    <hop>
+      <from>Télécharger (essai 2)</from>
+      <to>Vérifier (essai 2)</to>
+      <enabled>Y</enabled>
+      <evaluation>Y</evaluation>
+      <unconditional>N</unconditional>
+    </hop>
+    <hop>
+      <from>Vérifier (essai 2)</from>
+      <to>Déposer dans le data lake</to>
+      <enabled>Y</enabled>
+      <evaluation>Y</evaluation>
+      <unconditional>N</unconditional>
+    </hop>
+    <hop>
+      <from>Télécharger (essai 2)</from>
+      <to>Attendre 30 s (2)</to>
+      <enabled>Y</enabled>
+      <evaluation>N</evaluation>
+      <unconditional>N</unconditional>
+    </hop>
+    <hop>
+      <from>Vérifier (essai 2)</from>
+      <to>Attendre 30 s (2)</to>
+      <enabled>Y</enabled>
+      <evaluation>N</evaluation>
+      <unconditional>N</unconditional>
+    </hop>
+    <hop>
+      <from>Attendre 30 s (2)</from>
+      <to>Télécharger (essai 3)</to>
+      <enabled>Y</enabled>
+      <evaluation>Y</evaluation>
+      <unconditional>N</unconditional>
+    </hop>
+    <hop>
+      <from>Télécharger (essai 3)</from>
+      <to>Vérifier (essai 3)</to>
+      <enabled>Y</enabled>
+      <evaluation>Y</evaluation>
+      <unconditional>N</unconditional>
+    </hop>
+    <hop>
+      <from>Vérifier (essai 3)</from>
+      <to>Déposer dans le data lake</to>
+      <enabled>Y</enabled>
+      <evaluation>Y</evaluation>
+      <unconditional>N</unconditional>
+    </hop>
+    <hop>
+      <from>Déposer dans le data lake</from>
+      <to>Succès</to>
+      <enabled>Y</enabled>
+      <evaluation>Y</evaluation>
+      <unconditional>N</unconditional>
+    </hop>
+  </hops>
+  <notepads>
+  </notepads>
+  <attributes/>
+</workflow>

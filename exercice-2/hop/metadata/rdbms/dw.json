@@ -1,0 +1,17 @@
+{
+  "rdbms": {
+    "POSTGRESQL": {
+      "databaseName": "${PGDATABASE}",
+      "pluginId": "POSTGRESQL",
+      "accessType": 0,
+      "hostname": "${PGHOST}",
+      "password": "${PGPASSWORD}",
+      "pluginName": "PostgreSQL",
+      "port": "${PGPORT}",
+      "attributes": {},
+      "manualUrl": "",
+      "username": "${PGUSER}"
+    }
+  },
+  "name": "dw"
+}

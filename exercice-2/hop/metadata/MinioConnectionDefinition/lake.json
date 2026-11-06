@@ -1,0 +1,12 @@
+{
+  "name": "lake",
+  "description": "Data lake (RustFS, compatible S3/MinIO). Chemins : lake://<bucket>/<clé>",
+  "endPointHostname": "${S3_HOST}",
+  "endPointPort": "${S3_PORT}",
+  "endPointSecure": false,
+  "accessKey": "${S3_ACCESS_KEY}",
+  "secretKey": "${S3_SECRET_KEY}",
+  "region": "us-east-1",
+  "partSize": "",
+  "cacheTtlSeconds": ""
+}

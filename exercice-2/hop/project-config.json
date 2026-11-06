@@ -1,0 +1,15 @@
+{
+  "metadataBaseFolder": "${PROJECT_HOME}/metadata",
+  "unitTestsBasePath": "${PROJECT_HOME}",
+  "dataSetsCsvFolder": "${PROJECT_HOME}/datasets",
+  "enforcingExecutionInHome": true,
+  "config": {
+    "variables": [
+      {
+        "name": "BODACC_FICHIERS",
+        "value": ".*\\.parquet",
+        "description": "Fichiers BODACC lus (expression régulière) ; une seule année pour un test rapide, par exemple 2009\\.parquet"
+      }
+    ]
+  }
+}
