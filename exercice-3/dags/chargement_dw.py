@@ -11,6 +11,7 @@ from datetime import timedelta
 import boto3
 import duckdb
 import pendulum
+import psycopg2
 import requests
 from airflow.sdk import dag, task
 
@@ -175,7 +176,7 @@ def chargement_dw():
         # Une ligne par SIREN : infos de l'annonce la plus récente, plus les SIREN connus uniquement par leurs bilans.
         con.execute(f"""
             INSERT INTO dw.dim_entreprise
-            SELECT siren,
+            SELECT siren::INTEGER,
                    arg_max(type_personne, jour) FILTER (WHERE type_personne IS NOT NULL),
                    arg_max(forme_juridique, jour) FILTER (WHERE forme_juridique IS NOT NULL)
             FROM (
@@ -191,18 +192,35 @@ def chargement_dw():
     def charger_fait_annonce():
         connexion().execute(f"""
             INSERT INTO dw.fait_annonce
-            SELECT annonce_id, siren, jour, departement_code, type_annonce, motif_radiation
+            SELECT annonce_id, siren::INTEGER, jour, departement_code, type_annonce, motif_radiation
             FROM read_parquet('{CLEAN}/annonces.parquet')
             WHERE jour BETWEEN DATE '2000-01-01' AND DATE '2030-12-31'
+            ORDER BY jour  -- ordre physique des dates : c'est ce qui rend efficace l'index BRIN sur jour
         """)
 
     @task
     def charger_fait_bilan():
         connexion().execute(f"""
             INSERT INTO dw.fait_bilan
-            SELECT siren, date_cloture, type_bilan, confidentialite, chiffre_affaires, resultat, impot_benefices
+            SELECT siren::INTEGER, date_cloture, type_bilan, confidentialite, chiffre_affaires, resultat, impot_benefices
             FROM read_parquet('{CLEAN}/bilans.parquet')
         """)
+
+    @task
+    def actualiser_agregats():
+        # Agrégats des indicateurs recalculés. Puis VACUUM ANALYZE : statistiques à jour pour que PostgreSQL choisisse
+        # les bons plans, et pages marquées comme lues (sans cela, les premières requêtes après le chargement réécrivent
+        # les pages et sont lentes). VACUUM refuse de tourner dans une transaction : connexion directe, en autocommit.
+        # (pas de « with psycopg2.connect() » : ce bloc ouvre une transaction même en autocommit)
+        con = psycopg2.connect(os.environ["DW_DSN"])
+        con.autocommit = True
+        try:
+            with con.cursor() as cur:
+                cur.execute("REFRESH MATERIALIZED VIEW kpi_annonces")
+                cur.execute("REFRESH MATERIALIZED VIEW kpi_bilans")
+                cur.execute("VACUUM ANALYZE")
+        finally:
+            con.close()
 
     @task
     def controler():
@@ -214,14 +232,13 @@ def chargement_dw():
                 raise ValueError(f"{table} est vide")
         # Indicateur de l'exercice 1 : sociétés créées / radiées hors radiations d'office, par année
         print(con.execute("""
-            SELECT t.annee,
-                   count(*) FILTER (WHERE a.type_annonce = 'creation') AS creations,
-                   count(*) FILTER (WHERE a.type_annonce = 'radiation' AND a.motif_radiation <> 'office') AS radiations_hors_office
-            FROM dw.fait_annonce a
-            JOIN dw.dim_entreprise e USING (siren)
-            JOIN dw.dim_temps t USING (jour)
-            WHERE e.type_personne = 'pm'
-            GROUP BY t.annee ORDER BY t.annee
+            SELECT annee,
+                   sum(annonces) FILTER (WHERE type_annonce = 'creation') AS creations,
+                   sum(annonces) FILTER (WHERE type_annonce = 'radiation' AND motif_radiation <> 'office')
+                       AS radiations_hors_office
+            FROM dw.kpi_annonces
+            WHERE type_personne = 'pm'
+            GROUP BY annee ORDER BY annee
         """).df().to_string(index=False))
 
     bucket = creer_bucket()
@@ -232,7 +249,7 @@ def chargement_dw():
     dims = charger_dimensions()
     bodacc >> nettoyer_annonces() >> dims
     inpi >> nettoyer_bilans() >> dims
-    dims >> [charger_fait_annonce(), charger_fait_bilan()] >> controler()
+    dims >> [charger_fait_annonce(), charger_fait_bilan()] >> actualiser_agregats() >> controler()
 
 
 chargement_dw()

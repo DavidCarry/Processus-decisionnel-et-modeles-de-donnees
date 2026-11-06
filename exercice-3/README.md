@@ -69,7 +69,7 @@ flowchart LR
     TI --> NB[nettoyer_bilans]
     NA & NB --> CD[charger_dimensions]
     CD --> FA[charger_fait_annonce] & FB[charger_fait_bilan]
-    FA & FB --> CT[controler]
+    FA & FB --> AG[actualiser_agregats] --> CT[controler]
 ```
 
 | Tâche | Ce qu'elle fait |
@@ -81,6 +81,7 @@ flowchart LR
 | `nettoyer_bilans` | Garde les comptes sociaux, un bilan par SIREN et par exercice, extrait CA, résultat et impôt de la liasse fiscale. Écrit `clean/bilans.parquet`. |
 | `charger_dimensions` | Vide le data warehouse puis charge les 3 dimensions. Le DAG peut donc être relancé sans doublons. |
 | `charger_fait_annonce`, `charger_fait_bilan` | Chargent les faits, en parallèle. |
+| `actualiser_agregats` | Recalcule les vues d'agrégats (`kpi_annonces`, `kpi_bilans`) et met à jour les statistiques de PostgreSQL (`ANALYZE`). |
 | `controler` | Échoue si une table est vide ; affiche le nombre de lignes et l'indicateur de l'exercice 1 (sociétés créées / radiées hors radiations d'office, par année). |
 
 ### Règles de nettoyage
@@ -171,20 +172,20 @@ erDiagram
         varchar region_nom
     }
     dim_entreprise {
-        char siren PK
+        int siren PK
         varchar type_personne
         varchar forme_juridique
     }
     fait_annonce {
         varchar annonce_id PK
-        char siren FK
+        int siren FK
         date jour FK
         varchar departement_code FK
         varchar type_annonce
         varchar motif_radiation
     }
     fait_bilan {
-        char siren PK, FK
+        int siren PK, FK
         date date_cloture PK, FK
         char type_bilan
         varchar confidentialite
@@ -193,3 +194,53 @@ erDiagram
         bigint impot_benefices
     }
 ```
+
+Deux vues matérialisées d'agrégats complètent le modèle (voir Optimisation) :
+
+| Vue | Grain | Contenu |
+|---|---|---|
+| `kpi_annonces` | année × type d'annonce × motif × type de personne × département | nombre d'annonces |
+| `kpi_bilans` | année × tranche de chiffre d'affaires | entreprises, entreprises qui paient l'IS, IS total |
+
+## Optimisation
+
+Optimiser une base, c'est réduire ce qu'elle lit et stocke pour répondre aux questions qu'on lui pose réellement.
+
+**En volume :**
+- des types au plus juste : entier plutôt que texte pour un code numérique, `smallint` pour une année, pas de `varchar` surdimensionné ;
+- des valeurs répétées factorisées dans une dimension (une forme juridique stockée une fois, référencée par un petit entier) ;
+- seulement les index utiles, et du bon type : un index BRIN pour une colonne rangée dans l'ordre physique (dates d'insertion) pèse quelques Ko au lieu de dizaines de Mo ;
+- le partitionnement (par année) pour archiver ou purger un bloc entier sans réécrire la table.
+
+**En temps de requête :**
+- pré-calculer les agrégats qu'on interroge sans cesse (vues matérialisées, tables d'agrégats), recalculés au chargement plutôt qu'à chaque lecture ;
+- des index sur les colonnes de filtre et de jointure, et des statistiques à jour (`ANALYZE`) pour que le planificateur choisisse le bon plan ;
+- des jointures sur des clés entières, plus rapides à comparer que du texte ;
+- au chargement, insérer en masse (`COPY`), dans l'ordre utile (date), puis construire les index.
+
+**Appliqué ici** (commit dédié, `sql/01_dw.sql` et le DAG) :
+
+| Changement | Effet |
+|---|---|
+| SIREN en `integer` au lieu de `char(9)` dans les 3 tables | 4 octets au lieu de 10, dans les tables et les 3 index qui le contiennent |
+| Index BRIN sur `fait_annonce.jour`, annonces insérées par date | remplace un B-tree de 85 Mo |
+| Vues matérialisées `kpi_annonces` et `kpi_bilans`, lues par le notebook | les indicateurs ne joignent plus 10,9 M d'annonces à 9,2 M d'entreprises |
+| `ANALYZE` après chaque chargement | statistiques justes dès la fin du DAG |
+
+**Mesures** (même machine, cache chaud, avant et après ce commit) :
+
+| | Avant | Après |
+|---|---|---|
+| Taille de la base | 3 354 Mo | 2 909 Mo (−13 %) |
+| `dim_entreprise` + index | 585 + 356 Mo | 525 + 263 Mo |
+| `fait_bilan` + clé primaire | 496 + 221 Mo | 447 + 157 Mo |
+| Index `fait_annonce(siren)` | 381 Mo | 283 Mo |
+| Index `fait_annonce(jour)` | 85 Mo (B-tree) | 24 Ko (BRIN) |
+| Q1 : sociétés créées et radiées par année | 12 à 18 s | 4,5 s sur les faits, 3 ms dans `kpi_annonces` |
+| Q2 : IS 2023 par tranche de CA | 0,8 s | 0,4 s sur les faits, 0,2 ms dans `kpi_bilans` |
+| Q3 : annonces d'un SIREN | 4,6 ms | 0,2 ms |
+| Q4 : annonces d'un mois | 116 ms | 12 ms |
+
+La table `fait_annonce` ne rétrécit presque pas : chaque ligne est alignée sur 8 octets, les 6 octets gagnés sur le SIREN se perdent dans l'alignement. Pour aller plus loin, il faudrait factoriser `type_annonce` et `motif_radiation` (codes sur 1 octet) et la forme juridique (dimension à part).
+
+Mesurer : `docker compose exec -T dw psql -U dw -d dw < mesures.sql` (tailles des tables et index, durée des requêtes de référence).

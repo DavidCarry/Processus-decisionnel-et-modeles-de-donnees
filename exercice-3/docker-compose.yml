@@ -21,6 +21,7 @@ services:
   # Data warehouse (base dw) + métadonnées Airflow (base airflow)
   dw:
     image: postgres:16
+    shm_size: 256mb  # mémoire partagée des opérations parallèles (VACUUM, jointures) ; Docker la limite à 64 Mo par défaut
     environment:
       POSTGRES_USER: dw
       POSTGRES_PASSWORD: dw
