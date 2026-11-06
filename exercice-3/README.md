@@ -25,12 +25,21 @@ Le premier lancement prend environ 40 minutes, dont 30 pour télécharger les 5 
 | `dw` | Data warehouse PostgreSQL (base `dw`) et métadonnées Airflow (base `airflow`) | `localhost:5433` (`dw` / `dw`) |
 | `airflow` | Orchestration et visualisation des flux | http://localhost:8080 |
 | `jupyter` | Prototypage Python (`notebooks/exploration.ipynb`) | http://localhost:8888 |
+| `web` | Reporting web : les graphiques du notebook | http://localhost:8000 |
 
 Les ports n'écoutent que sur `127.0.0.1` : les services, sans mot de passe pour Airflow et Jupyter, ne sont pas accessibles depuis le réseau.
 
-Airflow et Jupyter partagent la même image (`Dockerfile`) : Airflow 3.3, DuckDB et JupyterLab. DuckDB lit et écrit directement dans le bucket et dans PostgreSQL : pas de fichier intermédiaire en local.
+Airflow, Jupyter et le site partagent la même image (`Dockerfile`) : Airflow 3.3, DuckDB, JupyterLab et Plotly. DuckDB lit et écrit directement dans le bucket et dans PostgreSQL : pas de fichier intermédiaire en local.
 
 MinIO a été remplacé par RustFS parce que les images MinIO ne sont plus publiées sur Docker Hub. Le protocole S3 est le même.
+
+## Reporting web
+
+Les graphiques validés dans le notebook sont publiés sur http://localhost:8000.
+
+- **Même code** : chaque graphique est une fonction de `reporting/graphiques.py`, qui renvoie une figure Plotly. Le notebook l'affiche (`societes_par_annee()`), le site l'intègre en HTML (`reporting/web.py`) : les graphiques sont strictement identiques.
+- **Microframework** : FastAPI, servi par uvicorn. Les deux sont déjà fournis par l'image Airflow 3 : la seule dépendance ajoutée est Plotly, qui fournit aussi Plotly.js (copie locale, aucun CDN). Les courbes utilisent le rendu WebGL de Plotly (`Scattergl`).
+- **Données** : les graphiques lisent les agrégats `kpi_annonces` et `kpi_bilans` (quelques millisecondes), recalculés à chaque chargement : le site est à jour dès la fin du DAG.
 
 ## Les flux
 
