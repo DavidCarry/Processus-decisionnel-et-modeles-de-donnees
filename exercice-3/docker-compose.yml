@@ -7,6 +7,30 @@ x-acces: &acces
   S3_BUCKET: datalake
   DW_DSN: host=dw port=5432 dbname=dw user=dw password=dw
 
+# SSO : chaque interface web est servie par un oauth2-proxy, qui exige une connexion Keycloak.
+# Le cookie de session (même nom, même secret, domaine localhost) vaut pour toutes les interfaces : une seule connexion.
+# Le navigateur parle à Keycloak sur localhost:8180, les proxys sur keycloak:8080 (réseau Docker).
+x-sso: &sso
+  image: quay.io/oauth2-proxy/oauth2-proxy:v7.15.5
+  depends_on: [keycloak]
+  restart: on-failure  # attend que Keycloak réponde
+x-sso-env: &sso-env
+  OAUTH2_PROXY_PROVIDER: oidc
+  OAUTH2_PROXY_OIDC_ISSUER_URL: http://localhost:8180/realms/speak-with-data
+  OAUTH2_PROXY_SKIP_OIDC_DISCOVERY: "true"
+  OAUTH2_PROXY_LOGIN_URL: http://localhost:8180/realms/speak-with-data/protocol/openid-connect/auth
+  OAUTH2_PROXY_REDEEM_URL: http://keycloak:8080/realms/speak-with-data/protocol/openid-connect/token
+  OAUTH2_PROXY_OIDC_JWKS_URL: http://keycloak:8080/realms/speak-with-data/protocol/openid-connect/certs
+  OAUTH2_PROXY_PROFILE_URL: http://keycloak:8080/realms/speak-with-data/protocol/openid-connect/userinfo
+  OAUTH2_PROXY_CLIENT_ID: oauth2-proxy
+  OAUTH2_PROXY_CLIENT_SECRET: secret-oauth2-proxy
+  OAUTH2_PROXY_CODE_CHALLENGE_METHOD: S256
+  OAUTH2_PROXY_COOKIE_SECRET: speak-with-data-cookie-secret-32
+  OAUTH2_PROXY_COOKIE_SECURE: "false"
+  OAUTH2_PROXY_EMAIL_DOMAINS: "*"
+  OAUTH2_PROXY_SKIP_PROVIDER_BUTTON: "true"
+  OAUTH2_PROXY_HTTP_ADDRESS: 0.0.0.0:4180
+
 services:
   # Data lake : stockage S3 (RustFS, compatible MinIO/AWS)
   datalake:
@@ -15,7 +39,7 @@ services:
       RUSTFS_ACCESS_KEY: admin
       RUSTFS_SECRET_KEY: admin12345
       RUSTFS_CONSOLE_ENABLE: "true"
-    ports: ["127.0.0.1:9000:9000", "127.0.0.1:9001:9001"]
+    ports: ["127.0.0.1:9000:9000"]  # API S3 (clés d'accès) ; la console web (9001) passe par le SSO
     volumes: [datalake:/data]
 
   # Data warehouse (base dw) + métadonnées Airflow (base airflow)
@@ -35,7 +59,7 @@ services:
       interval: 5s
       retries: 20
 
-  # Orchestration : http://localhost:8080
+  # Orchestration (via le SSO : http://localhost:8080)
   airflow:
     build: .
     image: speak-with-data
@@ -52,13 +76,12 @@ services:
       SMTP_HOST: mail
       SMTP_PORT: "1025"
       RAPPORT_DESTINATAIRES: direction@speak-with-data.local
-    ports: ["127.0.0.1:8080:8080"]
     volumes: [./dags:/opt/airflow/dags, ./reporting:/opt/airflow/reporting:ro]
     depends_on:
       dw: {condition: service_healthy}
       datalake: {condition: service_started}
 
-  # Prototypage : http://localhost:8888
+  # Prototypage (via le SSO : http://localhost:8888)
   jupyter:
     build: .
     image: speak-with-data
@@ -68,22 +91,59 @@ services:
     environment:
       <<: *acces
       PYTHONPATH: /opt/airflow/reporting
-    ports: ["127.0.0.1:8888:8888"]
     volumes: [./notebooks:/opt/airflow/notebooks, ./reporting:/opt/airflow/reporting:ro]
 
-  # Boîte mail de test : reçoit le rapport envoyé par le DAG, consultable sur http://localhost:8025
+  # Boîte mail de test : reçoit le rapport envoyé par le DAG (via le SSO : http://localhost:8025)
   mail:
     image: axllent/mailpit:v1.32.0
-    ports: ["127.0.0.1:8025:8025"]
 
-  # Reporting web : http://localhost:8000 (mêmes graphiques que le notebook, même code : reporting/graphiques.py)
+  # Reporting web (via le SSO : http://localhost:8000) : mêmes graphiques que le notebook, même code (reporting/graphiques.py)
   web:
     image: speak-with-data
     depends_on: [airflow]
     entrypoint: ["uvicorn", "web:app", "--host", "0.0.0.0", "--port", "8000", "--app-dir", "/opt/airflow/reporting"]
     environment: *acces
-    ports: ["127.0.0.1:8000:8000"]
     volumes: [./reporting:/opt/airflow/reporting:ro]
+
+  # SSO : fournisseur d'identité (console d'administration : http://localhost:8180, admin / admin).
+  # Royaume speak-with-data importé au premier démarrage (keycloak/speak-with-data.json), utilisateur analyste / analyste.
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.8.1
+    command: ["start-dev", "--import-realm"]
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
+      KC_HOSTNAME: http://localhost:8180
+      KC_HOSTNAME_BACKCHANNEL_DYNAMIC: "true"
+    ports: ["127.0.0.1:8180:8080"]
+    volumes: [./keycloak:/opt/keycloak/data/import:ro]
+
+  # Un proxy SSO par interface, sur le port d'origine de l'interface
+  sso-airflow:
+    <<: *sso
+    environment: {<<: *sso-env, OAUTH2_PROXY_UPSTREAMS: "http://airflow:8080",
+                  OAUTH2_PROXY_REDIRECT_URL: "http://localhost:8080/oauth2/callback"}
+    ports: ["127.0.0.1:8080:4180"]
+  sso-jupyter:
+    <<: *sso
+    environment: {<<: *sso-env, OAUTH2_PROXY_UPSTREAMS: "http://jupyter:8888",
+                  OAUTH2_PROXY_REDIRECT_URL: "http://localhost:8888/oauth2/callback"}
+    ports: ["127.0.0.1:8888:4180"]
+  sso-web:
+    <<: *sso
+    environment: {<<: *sso-env, OAUTH2_PROXY_UPSTREAMS: "http://web:8000",
+                  OAUTH2_PROXY_REDIRECT_URL: "http://localhost:8000/oauth2/callback"}
+    ports: ["127.0.0.1:8000:4180"]
+  sso-mail:
+    <<: *sso
+    environment: {<<: *sso-env, OAUTH2_PROXY_UPSTREAMS: "http://mail:8025",
+                  OAUTH2_PROXY_REDIRECT_URL: "http://localhost:8025/oauth2/callback"}
+    ports: ["127.0.0.1:8025:4180"]
+  sso-datalake:
+    <<: *sso
+    environment: {<<: *sso-env, OAUTH2_PROXY_UPSTREAMS: "http://datalake:9001",
+                  OAUTH2_PROXY_REDIRECT_URL: "http://localhost:9001/oauth2/callback"}
+    ports: ["127.0.0.1:9001:4180"]
 
 volumes:
   datalake:

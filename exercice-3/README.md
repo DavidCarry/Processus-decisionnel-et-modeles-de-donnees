@@ -21,18 +21,30 @@ Le premier lancement prend environ 40 minutes, dont 30 pour télécharger les 5 
 
 | Service | Rôle | Accès |
 |---|---|---|
-| `datalake` | Data lake S3 ([RustFS](https://rustfs.com), compatible MinIO/AWS) | API `localhost:9000`, console http://localhost:9001 (`admin` / `admin12345`) |
+| `datalake` | Data lake S3 ([RustFS](https://rustfs.com), compatible MinIO/AWS) | API `localhost:9000`, console http://localhost:9001/rustfs/console/ (`admin` / `admin12345`) |
 | `dw` | Data warehouse PostgreSQL (base `dw`) et métadonnées Airflow (base `airflow`) | `localhost:5433` (`dw` / `dw`) |
 | `airflow` | Orchestration et visualisation des flux | http://localhost:8080 |
 | `jupyter` | Prototypage Python (`notebooks/exploration.ipynb`) | http://localhost:8888 |
 | `web` | Reporting web : les graphiques du notebook | http://localhost:8000 |
 | `mail` | Boîte mail de test ([Mailpit](https://mailpit.axllent.org)) : reçoit le rapport hebdomadaire | http://localhost:8025 |
+| `keycloak` | SSO : fournisseur d'identité | http://localhost:8180 (administration : `admin` / `admin`) |
+| `sso-*` | Un [oauth2-proxy](https://oauth2-proxy.github.io/oauth2-proxy/) devant chaque interface web | |
 
-Les ports n'écoutent que sur `127.0.0.1` : les services, sans mot de passe pour Airflow et Jupyter, ne sont pas accessibles depuis le réseau.
+Toutes les interfaces web demandent une connexion Keycloak : utilisateur `analyste`, mot de passe `analyste`. Les ports n'écoutent que sur `127.0.0.1`.
 
 Airflow, Jupyter et le site partagent la même image (`Dockerfile`) : Airflow 3.3, DuckDB, JupyterLab et Plotly. DuckDB lit et écrit directement dans le bucket et dans PostgreSQL : pas de fichier intermédiaire en local.
 
 MinIO a été remplacé par RustFS parce que les images MinIO ne sont plus publiées sur Docker Hub. Le protocole S3 est le même.
+
+## SSO
+
+Les KPI sont un actif de l'entreprise : aucune interface n'est accessible sans connexion.
+
+- **Keycloak** est le fournisseur d'identité. Le royaume `speak-with-data` (utilisateur `analyste`, client `oauth2-proxy`) est importé au premier démarrage depuis `keycloak/speak-with-data.json`.
+- **Un oauth2-proxy par interface** (Airflow, Jupyter, site de reporting, Mailpit, console RustFS) occupe le port de l'interface et ne transmet une requête qu'après connexion OpenID Connect. Les interfaces elles-mêmes ne publient plus aucun port : impossible de contourner le proxy.
+- **Une seule connexion** : les proxys partagent le même cookie de session (même nom, même secret), valable sur `localhost` quel que soit le port.
+- Hors SSO : l'API S3 (`9000`) et PostgreSQL (`5433`) ne sont pas des interfaces web ; ils restent protégés par leurs propres identifiants, et seulement sur `127.0.0.1`.
+- Les mots de passe et secrets du compose sont ceux d'une démonstration ; en production, ils viendraient d'un coffre (variables d'environnement, secrets Docker) et Keycloak serait en HTTPS.
 
 ## Reporting web
 
