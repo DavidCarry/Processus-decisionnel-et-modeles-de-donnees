@@ -1,4 +1,5 @@
-# Image commune à Airflow et Jupyter : Airflow + DuckDB (lecture S3, écriture PostgreSQL) + JupyterLab + matplotlib
+# Image commune à Airflow et Jupyter : Airflow + DuckDB (lecture S3, écriture PostgreSQL) + JupyterLab + matplotlib.
+# requests et boto3 (téléchargement des sources, dépôt dans le bucket) sont déjà fournis par l'image Airflow.
 FROM apache/airflow:3.3.2
 
 RUN pip install --no-cache-dir "apache-airflow==${AIRFLOW_VERSION}" duckdb==1.5.* jupyterlab matplotlib

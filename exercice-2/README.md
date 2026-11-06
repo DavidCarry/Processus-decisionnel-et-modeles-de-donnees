@@ -22,9 +22,8 @@ Exécution : dans Hop GUI pendant la conception, puis en ligne de commande avec 
 
 | Fichier dans le bucket | Contenu |
 |---|---|
-| `datalake/bodacc/creations.parquet` | Annonces BODACC de création (5,2 M) |
-| `datalake/bodacc/radiations.parquet` | Annonces BODACC de radiation (4,3 M) |
-| `datalake/inpi/donnees_financieres.parquet` | Bilans déposés, liasse fiscale en colonne `liasse` (code → montant) (6,4 M) |
+| `raw/bodacc/<année>.parquet` | Annonces BODACC de création et de radiation, un fichier par année depuis 2008 ; la colonne `familleavis` vaut `creation` ou `radiation` (11 M au total) |
+| `raw/inpi/donnees_financieres.parquet` | Bilans déposés, liasse fiscale en colonne `liasse` (code → montant) (6,4 M) |
 
 Hop lit le bucket grâce à une connexion **MinIO** (compatible S3) déclarée dans les metadata, et écrit dans le data warehouse grâce à une connexion **PostgreSQL**.
 
@@ -43,13 +42,13 @@ Les dimensions sont chargées avant les faits, pour que les clés étrangères e
 `Generate rows` (11 323 lignes) → `Add sequence` (n° du jour) → `Calculator` (date de départ + n jours, année, trimestre, mois) → `Table output`.
 
 **2. `dim_territoire`** : la liste des départements.
-`Parquet File Input` (créations, radiations) → `Select values` (code et nom du département, code et nom de la région) → `Unique rows (HashSet)` sur le code → `Filter rows` (code non vide) → `Table output`.
+`Get file names` (`raw/bodacc/*.parquet`) → `Parquet File Input` → `Select values` (code et nom du département, code et nom de la région) → `Unique rows (HashSet)` sur le code → `Filter rows` (code non vide) → `Table output`.
 
 **3. `dim_entreprise`** : une ligne par SIREN.
-`Parquet File Input` (créations, radiations) → `Filter rows` (`typeavis = annonce`) → nettoyage du SIREN (voir ci-dessous) → `Regex evaluation` sur `listepersonnes` (extrait `typePersonne` et `formeJuridique`) → `String operations` (minuscules, espaces) → `Append streams` avec les SIREN des bilans → `Unique rows (HashSet)` sur le SIREN → `Table output`.
+`Get file names` (`raw/bodacc/*.parquet`) → `Parquet File Input` → `Filter rows` (`typeavis = annonce`) → nettoyage du SIREN (voir ci-dessous) → `Regex evaluation` sur `listepersonnes` (extrait `typePersonne` et `formeJuridique`) → `String operations` (minuscules, espaces) → `Append streams` avec les SIREN des bilans → `Unique rows (HashSet)` sur le SIREN → `Table output`.
 
 **4. `fait_annonce`** : une ligne par annonce.
-`Parquet File Input` (créations) + `Add constants` (`type_annonce = creation`), idem pour les radiations → `Append streams` → `Filter rows` (`typeavis = annonce`) → nettoyage du SIREN → `Switch / case` sur `radiationaurcs`, en mode « contient » (*Radiation d'office* → `office`, *liquidation* → `liquidation`, sinon `autre`) → `Select values` (renommage : `id` → `annonce_id`, `dateparution` → `jour`, `numerodepartement` → `departement_code`) → `Table output`.
+`Get file names` (`raw/bodacc/*.parquet`) → `Parquet File Input` → `Filter rows` (`typeavis = annonce`) → nettoyage du SIREN → `Switch / case` sur `radiationaurcs`, en mode « contient », pour les radiations (*Radiation d'office* → `office`, *liquidation* → `liquidation`, sinon `autre`) → `Select values` (renommage : `id` → `annonce_id`, `familleavis` → `type_annonce`, `dateparution` → `jour`, `numerodepartement` → `departement_code`) → `Table output`.
 
 **5. `fait_bilan`** : un bilan par entreprise et par exercice.
 `Table input` sur une connexion **DuckDB**, qui lit le Parquet dans le bucket et extrait les codes utiles de la colonne `liasse` → `Filter rows` (comptes sociaux `C` ou `S` uniquement, clôture entre 2000 et 2030) → `Sort rows` (SIREN, date de clôture, type) → `Unique rows` (SIREN, date de clôture) → `Calculator` (chiffre d'affaires du régime simplifié) → `Table output`.

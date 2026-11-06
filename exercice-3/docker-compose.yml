@@ -18,31 +18,6 @@ services:
     ports: ["127.0.0.1:9000:9000", "127.0.0.1:9001:9001"]
     volumes: [datalake:/data]
 
-  # Dépose les 3 Parquet bruts de ../data dans s3://datalake/raw/ (une seule fois)
-  datalake-init:
-    image: amazon/aws-cli:latest
-    depends_on: [datalake]
-    environment:
-      AWS_ACCESS_KEY_ID: admin
-      AWS_SECRET_ACCESS_KEY: admin12345
-      AWS_DEFAULT_REGION: us-east-1
-      AWS_REQUEST_CHECKSUM_CALCULATION: when_required
-      AWS_RESPONSE_CHECKSUM_VALIDATION: when_required
-    volumes: ["../data:/source:ro"]
-    entrypoint: ["/bin/sh", "-c"]
-    command:
-      - |
-        s3="aws --endpoint-url http://datalake:9000 s3"
-        until $$s3 ls >/dev/null 2>&1; do echo "attente du data lake..."; sleep 2; done
-        $$s3 mb s3://datalake 2>/dev/null || true
-        depose() {
-          if $$s3 ls "s3://datalake/raw/$$2" >/dev/null 2>&1; then echo "déjà présent : $$2"
-          else echo "dépôt : $$2"; $$s3 cp "/source/$$1" "s3://datalake/raw/$$2" --only-show-errors; fi
-        }
-        depose "bodacc creation.parquet"     bodacc/creations.parquet
-        depose "bodacc radiations.parquet"   bodacc/radiations.parquet
-        depose "données financières.parquet" inpi/donnees_financieres.parquet
-
   # Data warehouse (base dw) + métadonnées Airflow (base airflow)
   dw:
     image: postgres:16
@@ -75,7 +50,7 @@ services:
     volumes: [./dags:/opt/airflow/dags]
     depends_on:
       dw: {condition: service_healthy}
-      datalake-init: {condition: service_completed_successfully}
+      datalake: {condition: service_started}
 
   # Prototypage : http://localhost:8888
   jupyter:

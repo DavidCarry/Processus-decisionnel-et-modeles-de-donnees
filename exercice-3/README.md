@@ -1,34 +1,27 @@
 # Exercice 3 : data lake, Airflow et data warehouse en Docker
 
-Un `docker compose up` monte toute la chaîne : les Parquet bruts sont déposés dans un bucket S3, un DAG Airflow les nettoie puis les charge dans un data warehouse PostgreSQL, et un Jupyter permet d'explorer les deux.
+Un `docker compose up` monte toute la chaîne : un DAG Airflow télécharge les données publiques dans un bucket S3, les nettoie puis les charge dans un data warehouse PostgreSQL, et un Jupyter permet d'explorer les deux.
 
 ## Lancer
 
-Prérequis : Docker, et les 3 fichiers dans `../data/` (non versionnés, 5,3 Go) :
-
-| Fichier | Source |
-|---|---|
-| `bodacc creation.parquet` | [BODACC, annonces commerciales](https://www.bodacc.fr/explore/dataset/annonces-commerciales/), famille « Créations » |
-| `bodacc radiations.parquet` | idem, famille « Radiations » |
-| `données financières.parquet` | [Données financières détaillées des entreprises](https://www.data.gouv.fr/datasets/donnees-financieres-detaillees-des-entreprises-format-parquet) |
+Prérequis : Docker et une connexion internet. Les données ne sont pas versionnées, le DAG les télécharge lui-même.
 
 ```bash
 cd exercice-3
 docker compose up -d --build
 ```
 
-Au premier démarrage, `datalake-init` dépose les fichiers dans le bucket (environ 1 min). Ensuite, ouvrir Airflow sur http://localhost:8080, DAG `chargement_dw`, bouton **Trigger**. Ou en ligne de commande :
+Ouvrir Airflow sur http://localhost:8080, DAG `chargement_dw`, bouton **Trigger**. Ou en ligne de commande :
 
 ```bash
 docker compose exec airflow airflow dags trigger chargement_dw
 ```
 
-Le DAG prend environ 20 minutes (dont 15 pour insérer les 9,4 M annonces dans PostgreSQL). `docker compose down` arrête tout ; `docker compose down -v` efface aussi le bucket et la base.
+Le premier lancement prend environ 40 minutes, dont 30 pour télécharger les 5 Go de données ; les suivants ne retéléchargent que l'année en cours. `docker compose down` arrête tout ; `docker compose down -v` efface aussi le bucket et la base, qui seront à retélécharger.
 
 | Service | Rôle | Accès |
 |---|---|---|
 | `datalake` | Data lake S3 ([RustFS](https://rustfs.com), compatible MinIO/AWS) | API `localhost:9000`, console http://localhost:9001 (`admin` / `admin12345`) |
-| `datalake-init` | Crée le bucket `datalake` et y dépose les fichiers bruts, puis s'arrête | |
 | `dw` | Data warehouse PostgreSQL (base `dw`) et métadonnées Airflow (base `airflow`) | `localhost:5433` (`dw` / `dw`) |
 | `airflow` | Orchestration et visualisation des flux | http://localhost:8080 |
 | `jupyter` | Prototypage Python (`notebooks/exploration.ipynb`) | http://localhost:8888 |
@@ -43,9 +36,12 @@ MinIO a été remplacé par RustFS parce que les images MinIO ne sont plus publi
 
 ```mermaid
 flowchart LR
+    subgraph web[Sources publiques]
+        S1[API BODACC : annonces commerciales]
+        S2[data.gouv.fr : données financières INPI]
+    end
     subgraph lake[Data lake S3 : bucket datalake]
-        R1[raw/bodacc/creations.parquet]
-        R2[raw/bodacc/radiations.parquet]
+        R1[raw/bodacc/2008.parquet … année en cours]
         R3[raw/inpi/donnees_financieres.parquet]
         C1[clean/annonces.parquet]
         C2[clean/bilans.parquet]
@@ -55,7 +51,9 @@ flowchart LR
         F1[fait_annonce]
         F2[fait_bilan]
     end
-    R1 & R2 --> C1
+    S1 --> R1
+    S2 --> R3
+    R1 --> C1
     R3 --> C2
     C1 & C2 --> D
     C1 --> F1
@@ -66,7 +64,9 @@ flowchart LR
 
 ```mermaid
 flowchart LR
-    V[verifier_sources] --> NA[nettoyer_annonces] & NB[nettoyer_bilans]
+    CB[creer_bucket] --> TB["telecharger_bodacc (une tâche par année)"] & TI[telecharger_inpi]
+    TB --> NA[nettoyer_annonces]
+    TI --> NB[nettoyer_bilans]
     NA & NB --> CD[charger_dimensions]
     CD --> FA[charger_fait_annonce] & FB[charger_fait_bilan]
     FA & FB --> CT[controler]
@@ -74,8 +74,10 @@ flowchart LR
 
 | Tâche | Ce qu'elle fait |
 |---|---|
-| `verifier_sources` | Échoue si un des 3 fichiers bruts manque dans le bucket. |
-| `nettoyer_annonces` | Fusionne créations et radiations, garde les avis initiaux, extrait le SIREN, le type de personne et la forme juridique, classe le motif de radiation. Écrit `clean/annonces.parquet`. |
+| `creer_bucket` | Crée le bucket `datalake` s'il n'existe pas. |
+| `telecharger_bodacc` | Une tâche par année depuis 2008, 4 en parallèle : exporte les créations et radiations de l'année depuis l'API du BODACC vers `raw/bodacc/<année>.parquet`. Le site coupe sans prévenir les gros exports, d'où le découpage : chaque fichier doit être lisible et avoir le nombre de lignes annoncé par l'API, sinon Airflow relance l'année. Les années passées déjà présentes ne sont pas retéléchargées ; l'année en cours l'est à chaque lancement. |
+| `telecharger_inpi` | Récupère sur data.gouv.fr l'adresse de la dernière version du fichier et le dépose dans `raw/inpi/`, s'il n'y est pas déjà. |
+| `nettoyer_annonces` | Lit toutes les années, garde les avis initiaux, extrait le SIREN, le type de personne et la forme juridique, classe le motif de radiation. Écrit `clean/annonces.parquet`. |
 | `nettoyer_bilans` | Garde les comptes sociaux, un bilan par SIREN et par exercice, extrait CA, résultat et impôt de la liasse fiscale. Écrit `clean/bilans.parquet`. |
 | `charger_dimensions` | Vide le data warehouse puis charge les 3 dimensions. Le DAG peut donc être relancé sans doublons. |
 | `charger_fait_annonce`, `charger_fait_bilan` | Chargent les faits, en parallèle. |

@@ -1,18 +1,59 @@
-"""Data lake (S3) -> nettoyage -> data warehouse (PostgreSQL).
+"""Sources publiques -> data lake (S3) -> nettoyage -> data warehouse (PostgreSQL).
 
-raw/   : fichiers bruts déposés dans le bucket au démarrage
+raw/   : fichiers bruts téléchargés depuis le BODACC et data.gouv.fr
 clean/ : fichiers nettoyés, au format du data warehouse
 dw     : schéma en étoile chargé depuis clean/
 """
 import os
+import tempfile
+from datetime import timedelta
 
+import boto3
 import duckdb
 import pendulum
+import requests
 from airflow.sdk import dag, task
 
 BUCKET = os.environ["S3_BUCKET"]
 RAW = f"s3://{BUCKET}/raw"
 CLEAN = f"s3://{BUCKET}/clean"
+
+# Sources : le BODACC est exporté par année (les gros exports sont coupés sans prévenir),
+# les données financières sont un seul fichier dont data.gouv.fr donne l'adresse de la dernière version.
+BODACC = "https://bodacc-datadila.opendatasoft.com/api/explore/v2.1/catalog/datasets/annonces-commerciales"
+INPI = "https://www.data.gouv.fr/api/1/datasets/donnees-financieres-detaillees-des-entreprises-format-parquet/"
+PREMIERE_ANNEE_BODACC = 2008
+
+
+def s3():
+    """Client S3 du data lake, pour créer le bucket et y déposer les fichiers bruts."""
+    return boto3.client("s3", endpoint_url=f"http://{os.environ['S3_ENDPOINT']}", region_name="us-east-1",
+                        aws_access_key_id=os.environ["S3_ACCESS_KEY"],
+                        aws_secret_access_key=os.environ["S3_SECRET_KEY"])
+
+
+def existe(cle):
+    """Vrai si le fichier est déjà dans le bucket."""
+    return s3().list_objects_v2(Bucket=BUCKET, Prefix=cle).get("KeyCount", 0) > 0
+
+
+def deposer(url, cle, params=None, lignes_attendues=None):
+    """Télécharge un Parquet, vérifie qu'il est complet, puis le dépose dans le bucket.
+
+    Un fichier coupé n'a pas de pied de page Parquet : DuckDB refuse de le lire et la tâche échoue,
+    Airflow la relance. Si l'API annonce un nombre de lignes, le fichier doit l'avoir exactement.
+    """
+    with tempfile.NamedTemporaryFile(suffix=".parquet") as fichier:
+        with requests.get(url, params=params, stream=True, timeout=600) as reponse:
+            reponse.raise_for_status()
+            for bloc in reponse.iter_content(chunk_size=1 << 20):
+                fichier.write(bloc)
+        fichier.flush()
+        lignes = duckdb.sql(f"SELECT count(*) FROM read_parquet('{fichier.name}')").fetchone()[0]
+        if lignes_attendues is not None and lignes != lignes_attendues:
+            raise ValueError(f"{cle} : {lignes} lignes au lieu de {lignes_attendues}")
+        s3().upload_file(fichier.name, BUCKET, cle)
+        print(f"{cle} : {lignes:,} lignes")
 
 
 def connexion():
@@ -33,13 +74,33 @@ def connexion():
 def chargement_dw():
 
     @task
-    def verifier_sources():
-        attendus = {f"{RAW}/bodacc/creations.parquet", f"{RAW}/bodacc/radiations.parquet",
-                    f"{RAW}/inpi/donnees_financieres.parquet"}
-        presents = {r[0] for r in connexion().execute(f"SELECT file FROM glob('{RAW}/**/*.parquet')").fetchall()}
-        manquants = attendus - presents
-        if manquants:
-            raise FileNotFoundError(f"Fichiers absents du data lake : {sorted(manquants)}")
+    def creer_bucket():
+        client = s3()
+        if BUCKET not in [b["Name"] for b in client.list_buckets()["Buckets"]]:
+            client.create_bucket(Bucket=BUCKET)
+
+    @task
+    def annees_bodacc():
+        return list(range(PREMIERE_ANNEE_BODACC, pendulum.now().year + 1))
+
+    # 4 années à la fois pour ménager l'API ; une année ratée (export coupé, coupure réseau) est relancée seule.
+    @task(retries=3, retry_delay=timedelta(seconds=30), max_active_tis_per_dag=4)
+    def telecharger_bodacc(annee):
+        # Les années passées ne changent plus : déjà présentes, on ne les retélécharge pas.
+        cle = f"raw/bodacc/{annee}.parquet"
+        if annee < pendulum.now().year and existe(cle):
+            return
+        filtre = {"where": f"familleavis in ('creation', 'radiation') and year(dateparution) = {annee}"}
+        attendu = requests.get(f"{BODACC}/records", params={**filtre, "limit": 0}, timeout=60).json()["total_count"]
+        deposer(f"{BODACC}/exports/parquet", cle, params=filtre, lignes_attendues=attendu)
+
+    @task(retries=3, retry_delay=timedelta(seconds=30))
+    def telecharger_inpi():
+        cle = "raw/inpi/donnees_financieres.parquet"
+        if existe(cle):
+            return
+        ressources = requests.get(INPI, timeout=60).json()["resources"]
+        deposer(next(r["url"] for r in ressources if r["format"] == "parquet"), cle)
 
     @task
     def nettoyer_annonces():
@@ -47,14 +108,9 @@ def chargement_dw():
         # motif de radiation déduit du texte de radiationaurcs.
         connexion().execute(f"""
             COPY (
-                WITH src AS (
-                    SELECT *, 'creation' AS type_annonce FROM read_parquet('{RAW}/bodacc/creations.parquet')
-                    UNION ALL BY NAME
-                    SELECT *, 'radiation' AS type_annonce FROM read_parquet('{RAW}/bodacc/radiations.parquet')
-                )
                 SELECT id AS annonce_id,
                        dateparution AS jour,
-                       type_annonce,
+                       familleavis AS type_annonce,
                        nullif(regexp_extract(replace(split_part(registre, ',', 1), ' ', ''), '^[0-9]{{9}}$'), '') AS siren,
                        numerodepartement AS departement_code,
                        departement_nom_officiel AS departement_nom,
@@ -63,12 +119,12 @@ def chargement_dw():
                        nullif(regexp_extract(listepersonnes, '"typePersonne": "(pm|pp)"', 1), '') AS type_personne,
                        nullif(left(lower(trim(regexp_extract(listepersonnes, '"formeJuridique": "([^"]*)"', 1))), 150), '')
                            AS forme_juridique,
-                       CASE WHEN type_annonce = 'radiation' THEN
+                       CASE WHEN familleavis = 'radiation' THEN
                            CASE WHEN radiationaurcs LIKE '%Radiation d''office%' THEN 'office'
                                 WHEN radiationaurcs ILIKE '%liquidation%' THEN 'liquidation'
                                 ELSE 'autre' END
                        END AS motif_radiation
-                FROM src
+                FROM read_parquet('{RAW}/bodacc/*.parquet')
                 WHERE typeavis = 'annonce'
             ) TO '{CLEAN}/annonces.parquet' (FORMAT parquet)
         """)
@@ -168,8 +224,14 @@ def chargement_dw():
             GROUP BY t.annee ORDER BY t.annee
         """).df().to_string(index=False))
 
+    bucket = creer_bucket()
+    bodacc = telecharger_bodacc.expand(annee=annees_bodacc())
+    inpi = telecharger_inpi()
+    bucket >> [bodacc, inpi]
+
     dims = charger_dimensions()
-    verifier_sources() >> [nettoyer_annonces(), nettoyer_bilans()] >> dims
+    bodacc >> nettoyer_annonces() >> dims
+    inpi >> nettoyer_bilans() >> dims
     dims >> [charger_fait_annonce(), charger_fait_bilan()] >> controler()
 
 
